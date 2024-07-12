@@ -1,0 +1,249 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: This is a template for VPC
+
+Parameters:
+  VpcCIDR:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: Please enter VPC CIDR
+
+  SubnetCIDR:
+    Type: String
+    Default: 10.0.1.0/24
+    Description: Please enter CIDR for Subnet
+
+  QApplicationID:
+    Type: String
+    Description: Enter the Q application ID
+    MinLength: 1 # Making the parameter required
+
+  QRegion:
+    Type: String
+    Description: Enter the region where the Q application is deployed
+    MinLength: 1 # Making the parameter required
+
+Resources:
+  myVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: "true"
+      EnableDnsHostnames: "true"
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: myVPC
+
+  myInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: myInternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref myVPC
+      InternetGatewayId: !Ref myInternetGateway
+
+  myPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: !Ref SubnetCIDR
+      AvailabilityZone: "us-east-1a"
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Name
+          Value: myPublicSubnet
+
+  myRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
+      Tags:
+        - Key: Name
+          Value: myRouteTable
+
+  myRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref myRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref myInternetGateway
+
+  mySubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref myPublicSubnet
+      RouteTableId: !Ref myRouteTable
+
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH access via port 22
+      VpcId:
+        Ref: myVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8501
+          ToPort: 8501
+          CidrIp: 0.0.0.0/0
+
+  MyUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AliasAttributes:
+        - preferred_username
+        - email
+      UsernameConfiguration:
+        CaseSensitive: false
+      UserPoolName: myUserPool
+      AutoVerifiedAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          TemporaryPasswordValidityDays: 7
+      MfaConfiguration: "OFF"
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+
+  MyUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: myUserPoolClient
+      GenerateSecret: false
+      UserPoolId: !Ref MyUserPool
+      SupportedIdentityProviders:
+        - COGNITO
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_CUSTOM_AUTH
+
+  MyIdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowClassicFlow: true
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+        - ClientId: !GetAtt MyUserPoolClient.ClientId
+          ProviderName: !GetAtt MyUserPool.ProviderName
+      IdentityPoolName: Myidentitypool
+
+  MyIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: "cognito-identity.amazonaws.com"
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud: !Ref MyIdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: "authenticated"
+      Policies:
+        - PolicyName: CognitoFullAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: "cognito:*"
+                Resource: "*"
+        - PolicyName: IAMFullAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: "iam:*"
+                Resource: "*"
+        - PolicyName: QBusinessAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: Statement1
+                Effect: Allow
+                Action: "qbusiness:*"
+                Resource: !Sub "arn:aws:qbusiness:${QRegion}:${AWS::AccountId}:application/${QApplicationID}"
+
+  MyIdentityPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref MyIdentityPool
+      Roles:
+        authenticated: !GetAtt MyIAMRole.Arn
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      SubnetId: !Ref myPublicSubnet
+      SecurityGroupIds:
+        - !Ref InstanceSecurityGroup
+      ImageId: ami-0a699202e5027c10d
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash -xe
+          cd home
+          cd ec2-user
+          yum update -y
+          yum install -y git
+          git clone https://github.com/atl-code/qtestapp
+          cd qtestapp
+          sudo amazon-linux-extras install python3.8 -y
+          python3.8 -m pip install --upgrade pip
+          python3.8 -m pip install -r requirements.txt
+          sudo yum install jq -y
+          # sudo mkdir -p .streamlit
+          # sudo tee .streamlit/secrets.toml <<EOF
+          # USER_POOL_ID = "us-east-1_IpvVz2oi0"
+          # CLIENT_ID = "62ll0lotj3mb691ti15v5ak0mi"
+          # REGION = "us-east-1"
+          # ACCOUNT_ID = "245353047635"
+          # IDENTITY_POOL_ID = "us-east-1:17318b0f-6555-4a66-b580-b1bf22277f33"
+          # APPLICATION_ID = "9d6f7e5e-a491-4dd9-a1da-c6514cc83b7a"
+          # USER_GROUP = "qbussinessgroup"
+          # EOF
+          python3.8 -m pip install streamlit==1.32.2
+          nohup python3.8 -m streamlit run Chatapplication.py &
+
+Outputs:
+  EC2PublicDNS:
+    Description: Public DNS of the EC2 instance
+    Value: !GetAtt EC2Instance.PublicDnsName
+
+  EC2PublicIP:
+    Description: Public IP address of the EC2 instance
+    Value: !Sub "http://${EC2Instance.PublicIp}:8501/"
+
+  CognitoPoolID:
+    Description: ID of the Cognito User Pool
+    Value: !Ref MyUserPool
+
+  IdentityPoolID:
+    Description: ID of the Cognito Identity Pool
+    Value: !Ref MyIdentityPool
+
+  QApplicationIDOutput:
+    Description: ID of the Q Application
+    Value: !Ref QApplicationID
+
+  UserPoolClientID:
+    Description: ID of the Cognito User Pool Client
+    Value: !GetAtt MyUserPoolClient.ClientId
