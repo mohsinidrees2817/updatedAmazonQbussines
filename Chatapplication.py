@@ -213,8 +213,8 @@ def main():
 
     if "token" not in st.session_state:
         oauth2 = configure_oauth_component()
-        # redirect_uri = f"https://{EXTERNAL_DNS}/component/streamlit_oauth.authorize_button/index.html"
-        redirect_uri = f"http://localhost:8501/component/streamlit_oauth.authorize_button/index.html"
+        redirect_uri = f"https://{EXTERNAL_DNS}/component/streamlit_oauth.authorize_button/index.html"
+        # redirect_uri = f"http://localhost:8501/component/streamlit_oauth.authorize_button/index.html"
         result = oauth2.authorize_button("Login",scope="openid", pkce="S256", redirect_uri=redirect_uri)
         if result and "token" in result:
             # If authorization successful, save token in session state
