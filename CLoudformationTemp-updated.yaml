@@ -31,6 +31,10 @@ Parameters:
     Type: String
     Description: Q Application Id
     Default: "c3b1409d-664b-400c-a52f-1501742dee4e"
+  IdcApplicationArn:
+    Type: String
+    Description: Identity Center customer application ARN.
+    Default: ""
 
 Resources:
   myVPC:

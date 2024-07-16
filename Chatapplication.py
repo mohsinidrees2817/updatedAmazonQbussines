@@ -1,6 +1,6 @@
 import streamlit as st
 import boto3
-from login import  configure_oauth_component , get_iam_oidc_token, refresh_iam_oidc_token, getCredentials
+from login import  configure_oauth_component , get_iam_oidc_token, getCredentials
 import jwt
 import jwt.algorithms
 from datetime import datetime, timedelta, timezone
@@ -37,6 +37,7 @@ def new_chat_with_Q(prompt):
         )
         parentMessageID = response["systemMessageId"]
         conversationID = response["conversationId"]
+        print(response)
         return response["systemMessage"]
     except Exception as e:
         print("Failed to chat with api: " + str(e))
@@ -59,8 +60,10 @@ def continue_chat_with_Q(prompt):
                 userId=UserId
         )
         parentMessageID = response["systemMessageId"]
+        print(response)
         return response["systemMessage"]
     except Exception as e:
+        print("Failed to chat with api: " + str(e))
         st.error("Failed to chat with api: " + str(e))  
 
 
@@ -134,9 +137,9 @@ def chatApplicationComponent():
     """,
     unsafe_allow_html=True,
     )
-    st.write(st.session_state["idc_jwt_token"])
-    st.write(st.session_state['token'])
-    st.write(st.session_state['aws_credentials'])
+    # st.write(st.session_state["idc_jwt_token"])
+    # st.write(st.session_state['token'])
+    # st.write(st.session_state['aws_credentials'])
 
     if "messages" not in st.session_state:
         st.session_state["messages"] = []
@@ -155,6 +158,7 @@ def chatApplicationComponent():
     # if st.button("Send"):
     if prompt:
         
+        
         # Get assistant response
         if conversationID and parentMessageID:
             with st.chat_message("user"):
@@ -167,7 +171,7 @@ def chatApplicationComponent():
             with st.chat_message("system"):
                 st.markdown(system_response)
             # Add assistant response to chat history
-            st.session_state.messages.append({"role": "system", "content": system_response})
+            st.session_state.messages.append({"role": "assistant", "content": system_response})
 
         else:
             st.session_state.messages = []
@@ -182,7 +186,7 @@ def chatApplicationComponent():
             with st.chat_message("system"):
                 st.markdown(system_response)
             # Add assistant response to chat history
-            st.session_state.messages.append({"role": "system", "content": system_response})
+            st.session_state.messages.append({"role": "assistant", "content": system_response})
 
 
         st.rerun()
@@ -206,8 +210,8 @@ def main():
 
     if "token" not in st.session_state:
         oauth2 = configure_oauth_component()
-        redirect_uri = f"https://{EXTERNAL_DNS}/component/streamlit_oauth.authorize_button/index.html"
-        # redirect_uri = f"http://localhost:8501/component/streamlit_oauth.authorize_button/index.html"
+        # redirect_uri = f"https://{EXTERNAL_DNS}/component/streamlit_oauth.authorize_button/index.html"
+        redirect_uri = f"http://localhost:8501/component/streamlit_oauth.authorize_button/index.html"
         result = oauth2.authorize_button("Login",scope="openid", pkce="S256", redirect_uri=redirect_uri)
         if result and "token" in result:
             # If authorization successful, save token in session state

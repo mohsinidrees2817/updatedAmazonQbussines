@@ -60,17 +60,6 @@ def assume_role_with_token(iam_token):
     st.session_state.aws_credentials = response["Credentials"]
 
 
-def refresh_iam_oidc_token(refresh_token):
-    """
-    Refresh the IAM OIDC token using the refresh token retrieved from Cognito
-    """
-    client = boto3.client("sso-oidc", region_name=REGION)
-    response = client.create_token_with_iam(
-        clientId=IDC_APPLICATION_ID,
-        grantType="refresh_token",
-        refreshToken=refresh_token,
-    )
-    return response
 
 # This method create the Q client
 def getCredentials(idc_id_token: str):
@@ -79,8 +68,7 @@ def getCredentials(idc_id_token: str):
     # """
     if not st.session_state.aws_credentials:
         assume_role_with_token(idc_id_token)
-    elif st.session_state.aws_credentials["Expiration"] < datetime.datetime.now(datetime.UTC):
-        assume_role_with_token(idc_id_token)
+
 
     
     session = boto3.Session(
@@ -89,7 +77,6 @@ def getCredentials(idc_id_token: str):
         aws_session_token=st.session_state.aws_credentials["SessionToken"],
     )
     amazon_q = session.client("qbusiness", REGION)
-
 
     sts_client = boto3.client('sts',
         aws_access_key_id=st.session_state.aws_credentials["AccessKeyId"],
