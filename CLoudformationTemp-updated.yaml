@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "CloudFormation for the blog on GenAI with QBusiness"
+Description: "CloudFormation for the Amazon Q Business Application using custom UI"
 
 Parameters:
   LatestAmiId:
@@ -22,11 +22,6 @@ Parameters:
     Description: Certificate that needs to be added to the Load Balancer
     Type: String
     Default: "arn:aws:acm:us-west-2:654654371288:certificate/46b6c798-37fb-4ca2-982f-7c14bdaf33d0"
-  AuthName:
-    Type: String
-    Description: Unique Auth Name for Cognito Resources
-    AllowedPattern: ^[a-z0-9]+$
-    ConstraintDescription: May only include lowercase, alphanumeric characters
   QApplicationId:
     Type: String
     Description: Q Application Id
@@ -347,7 +342,7 @@ Resources:
         SuppressedRules:
           - COGNITO_USER_POOL_MFA_CONFIGURATION_RULE # Not required for the demo
     Properties:
-      UserPoolName: !Sub ${AuthName}-user-pool
+      UserPoolName: !Sub qupdatedflowauth-user-pool
       AutoVerifiedAttributes:
         - email
       MfaConfiguration: "OFF"
@@ -360,7 +355,7 @@ Resources:
   UserPoolClient:
     Type: AWS::Cognito::UserPoolClient
     Properties:
-      ClientName: !Sub ${AuthName}-client
+      ClientName: !Sub qupdatedflowauth-client
       GenerateSecret: false
       UserPoolId: !Ref UserPool
       AllowedOAuthFlowsUserPoolClient: True
@@ -377,7 +372,7 @@ Resources:
     Type: AWS::Cognito::UserPoolDomain
     Properties:
       UserPoolId: !Ref UserPool
-      Domain: !Sub ${AuthName}-dns-testname
+      Domain: !Sub qupdatedflowauth-dns-testname
 
   ALBListener2:
     Type: AWS::ElasticLoadBalancingV2::Listener
@@ -500,7 +495,7 @@ Outputs:
   Audience:
     Description: Audience to setup customer application in Identity Center
     Value: !Ref UserPoolClient
-  RoleArn:
+  RoleArnForIAMIdentityCenter:
     Description: "ARN of the IAM role required to setup token exchange in Identity Center"
     Value: !GetAtt EC2ServiceRole.Arn
   UserPoolClientId:
@@ -508,13 +503,13 @@ Outputs:
     Value: !Ref UserPoolClient
   ApplicationLoadBalancerDNSName:
     Description: "DNS Name of the Application Load Balancer"
-    Value: !GetAtt ApplicationLoadBalancer.DNSName
+    Value: !Sub "${LowerCaseFqdn.Output}"
   UserPoolDomain:
     Description: "User Pool Domain"
     Value: !Sub "${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
   QApplicationId:
     Description: "Q Application Id"
     Value: !Ref QApplicationId
-  QServiceRoleArn:
+  IAMRole:
     Description: "Q Service Role Arn"
     Value: !GetAtt QServiceRole.Arn
