@@ -500,7 +500,7 @@ Outputs:
   Audience:
     Description: Audience to setup customer application in Identity Center
     Value: !Ref UserPoolClient
-  IAMIdentityCenterRoleArn:
+  RoleArn:
     Description: "ARN of the IAM role required to setup token exchange in Identity Center"
     Value: !GetAtt EC2ServiceRole.Arn
   UserPoolClientId:
@@ -515,6 +515,6 @@ Outputs:
   QApplicationId:
     Description: "Q Application Id"
     Value: !Ref QApplicationId
-  QserviceRoleArn:
+  QServiceRoleArn:
     Description: "Q Service Role Arn"
     Value: !GetAtt QServiceRole.Arn
