@@ -503,12 +503,18 @@ Outputs:
   RoleArn:
     Description: "ARN of the IAM role required to setup token exchange in Identity Center"
     Value: !GetAtt EC2ServiceRole.Arn
-  UserPoolId:
-    Description: "User Pool Id"
-    Value: !Ref UserPool
   UserPoolClientId:
     Description: "User Pool Client Id"
     Value: !Ref UserPoolClient
   ApplicationLoadBalancerDNSName:
     Description: "DNS Name of the Application Load Balancer"
     Value: !GetAtt ApplicationLoadBalancer.DNSName
+  UserPoolDomain:
+    Description: "User Pool Domain"
+    Value: !Sub "${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
+  QApplicationId:
+    Description: "Q Application Id"
+    Value: !Ref QApplicationId
+  QserviceRoleArn:
+    Description: "Q Service Role Arn"
+    Value: !GetAtt QServiceRole.Arn

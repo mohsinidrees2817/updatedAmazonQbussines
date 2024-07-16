@@ -167,7 +167,7 @@ def chatApplicationComponent():
             with st.chat_message("user"):
                 st.markdown(prompt)
                 # Add user message to chat history
-                st.session_state.messages.append({"role": "user", "content": prompt})
+            st.session_state.messages.append({"role": "user", "content": prompt})
             with st.spinner("Waiting for response..."):
                 system_response = continue_chat_with_Q(prompt)
                 # Display assistant response
@@ -214,7 +214,7 @@ def main():
     if "token" not in st.session_state:
         oauth2 = configure_oauth_component()
         redirect_uri = f"https://{EXTERNAL_DNS}/component/streamlit_oauth.authorize_button/index.html"
-        # # redirect_uri = f"http://localhost:8501/component/streamlit_oauth.authorize_button/index.html"
+        # redirect_uri = f"http://localhost:8501/component/streamlit_oauth.authorize_button/index.html"
         result = oauth2.authorize_button("Login",scope="openid", pkce="S256", redirect_uri=redirect_uri)
         if result and "token" in result:
             # If authorization successful, save token in session state
