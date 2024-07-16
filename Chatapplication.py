@@ -100,18 +100,8 @@ def chatApplicationComponent():
     user_name = jwt.decode(token["id_token"], options={"verify_signature": False})["cognito:username"]
     if "idc_jwt_token" not in st.session_state:
         st.session_state["idc_jwt_token"] = get_iam_oidc_token(token["id_token"])
-        st.session_state["idc_jwt_token"]["expires_at"] = datetime.now(UTC) + \
-            timedelta(seconds=st.session_state["idc_jwt_token"]["expiresIn"])
-    elif st.session_state["idc_jwt_token"]["expires_at"] < datetime.now(UTC):
-        # If the Identity Center token is expired, refresh the Identity Center token
-        try:
-            st.session_state["idc_jwt_token"] = refresh_iam_oidc_token(
-                st.session_state["idc_jwt_token"]["refreshToken"]
-                )
-            st.session_state["idc_jwt_token"]["expires_at"] = datetime.now(UTC) + \
-                timedelta(seconds=st.session_state["idc_jwt_token"]["expiresIn"])
-        except Exception as e:
-            st.error(f"Error refreshing Identity Center token: {e}. Please reload the page.")
+       
+    
     st.sidebar.text ("Welcome: " + user_name)
     st.markdown(
             f"""
