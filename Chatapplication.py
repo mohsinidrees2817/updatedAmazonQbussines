@@ -74,18 +74,28 @@ def clear_chat():
     st.rerun()
 
 
-#  Logout user and clear session state
+
+
 def logout():
-    global conversationID
-    global parentMessageID
-    st.session_state.messages = []
-    conversationID = None
-    parentMessageID = None
-    # Clear authentication information from session state
     if 'token' in st.session_state:
-        del st.session_state['token']
-        st.session_state.idc_jwt_token = None
-        st.rerun()
+        global conversationID
+        global parentMessageID
+        conversationID = None
+        parentMessageID = None
+        del st.session_state['aws_credentials']
+        st.session_state.clear()  # This clears all session state variables
+
+        # Prepare the Cognito logout URL
+        cognito_domain = login.OAUTH_CONFIG["CognitoDomain"]
+        client_id = login.OAUTH_CONFIG["ClientId"]
+        external_dns = login.OAUTH_CONFIG["ExternalDns"]
+
+        # Use the configured external DNS as the logout_uri
+        logout_uri = f"https://{external_dns}"
+        logout_url = f"https://{cognito_domain}/logout?client_id={client_id}&logout_uri={logout_uri}"
+
+        # Redirect the user to the logout URL
+        st.markdown(f"<meta http-equiv='refresh' content='0; url={logout_url}'/>", unsafe_allow_html=True)
     else:
         st.warning("No user logged in")
 
