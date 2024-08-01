@@ -3,13 +3,38 @@ import boto3
 from streamlit_oauth import OAuth2Component
 import jwt
 import jwt.algorithms
-from datetime import datetime
+import logging
+import os
+import urllib3
 
-CLIENT_ID = st.secrets["ClientId"]
-REGION = st.secrets["REGION"]
-COGNITO_DOMAIN = st.secrets["CognitoDomain"]
-IDC_APPLICATION_ID = st.secrets["IDC_APPLICATION_ID"]
-IAM_ROLE = st.secrets["IAM_ROLE"]
+logger = logging.getLogger()
+
+# Read the configuration file
+APPCONFIG_APP_NAME = os.environ["APPCONFIG_APP_NAME"]
+APPCONFIG_ENV_NAME = os.environ["APPCONFIG_ENV_NAME"]
+APPCONFIG_CONF_NAME = os.environ["APPCONFIG_CONF_NAME"]
+AMAZON_Q_APP_ID = None
+IAM_ROLE = None
+REGION = None
+IDC_APPLICATION_ID = None
+OAUTH_CONFIG = {}
+
+
+
+def retrieve_config_from_agent():
+    """
+    Retrieve the configuration from the agent
+    """
+    global IAM_ROLE, REGION, IDC_APPLICATION_ID, AMAZON_Q_APP_ID, OAUTH_CONFIG
+    config = urllib3.request(
+        "GET",
+        f"http://localhost:2772/applications/{APPCONFIG_APP_NAME}/environments/{APPCONFIG_ENV_NAME}/configurations/{APPCONFIG_CONF_NAME}",
+    ).json()
+    IAM_ROLE = config["IamRoleArn"]
+    REGION = config["Region"]
+    IDC_APPLICATION_ID = config["IdcApplicationArn"]
+    AMAZON_Q_APP_ID = config["AmazonQAppId"]
+    OAUTH_CONFIG = config["OAuthConfig"]
 
 
 # Function use to authenticate user credentials from Amazon Cognito
@@ -17,12 +42,12 @@ def configure_oauth_component():
     """
     Configure the OAuth2 component for Cognito
     """
-    cognito_domain = COGNITO_DOMAIN
+    cognito_domain = OAUTH_CONFIG["CognitoDomain"]
     authorize_url = f"https://{cognito_domain}/oauth2/authorize"
     token_url = f"https://{cognito_domain}/oauth2/token"
     refresh_token_url = f"https://{cognito_domain}/oauth2/token"
     revoke_token_url = f"https://{cognito_domain}/oauth2/revoke"
-    client_id = CLIENT_ID
+    client_id = OAUTH_CONFIG["ClientId"]
     return OAuth2Component(
         client_id, None, authorize_url, token_url, refresh_token_url, revoke_token_url
     )
@@ -78,13 +103,13 @@ def getCredentials(idc_id_token: str):
     )
     amazon_q = session.client("qbusiness", REGION)
 
-    sts_client = boto3.client('sts',
-        aws_access_key_id=st.session_state.aws_credentials["AccessKeyId"],
-        aws_secret_access_key=st.session_state.aws_credentials["SecretAccessKey"],
-        aws_session_token=st.session_state.aws_credentials["SessionToken"],
-        )
-    Userid = sts_client.get_caller_identity()
-    return amazon_q, Userid["UserId"]
+    # sts_client = boto3.client('sts',
+    #     aws_access_key_id=st.session_state.aws_credentials["AccessKeyId"],
+    #     aws_secret_access_key=st.session_state.aws_credentials["SecretAccessKey"],
+    #     aws_session_token=st.session_state.aws_credentials["SessionToken"],
+    #     )
+    # Userid = sts_client.get_caller_identity()
+    return amazon_q
 
 
 

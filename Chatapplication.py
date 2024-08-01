@@ -1,20 +1,19 @@
 import streamlit as st
 import boto3
-from login import  configure_oauth_component , get_iam_oidc_token, getCredentials
 import jwt
 import jwt.algorithms
 from datetime import datetime, timedelta, timezone
 from streamlit_feedback import streamlit_feedback
+import login
 
 UTC=timezone.utc
 
-QAPPLICATIONID = st.secrets["QAPPLICATION_ID"]
-REGION = st.secrets["REGION"]
-EXTERNAL_DNS = st.secrets["ExternalDns"]
+
 conversationID = None
 parentMessageID = None
 
-
+# Init configuration
+login.retrieve_config_from_agent()
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 
@@ -29,11 +28,10 @@ def new_chat_with_Q(prompt):
     global conversationID
     global parentMessageID
     try:
-        amazon_q , UserId  = getCredentials(st.session_state["idc_jwt_token"]["idToken"])
+        amazon_q   = login.getCredentials(st.session_state["idc_jwt_token"]["idToken"])
         response = amazon_q.chat_sync(
-            applicationId=QAPPLICATIONID,
+            applicationId=login.AMAZON_Q_APP_ID,
             userMessage=prompt,
-            userId=UserId
         )
         parentMessageID = response["systemMessageId"]
         conversationID = response["conversationId"]
@@ -50,14 +48,13 @@ def continue_chat_with_Q(prompt):
     global conversationID
     global parentMessageID
     try:
-        amazon_q , UserId  = getCredentials(st.session_state["idc_jwt_token"]["idToken"])
+        amazon_q   = login.getCredentials(st.session_state["idc_jwt_token"]["idToken"])
 
         response = amazon_q.chat_sync( 
-                applicationId=QAPPLICATIONID,
+                applicationId=login.AMAZON_Q_APP_ID,
                 userMessage=prompt,
                 conversationId=conversationID,
                 parentMessageId=parentMessageID,
-                userId=UserId
         )
         parentMessageID = response["systemMessageId"]
         print(response)
@@ -99,10 +96,9 @@ def logout():
 def chatApplicationComponent():
      #adding logo/username to the sidebar
     token = st.session_state["token"]
-    refresh_token = token["refresh_token"] # saving the long lived refresh_token
     user_name = jwt.decode(token["id_token"], options={"verify_signature": False})["cognito:username"]
     if "idc_jwt_token" not in st.session_state:
-        st.session_state["idc_jwt_token"] = get_iam_oidc_token(token["id_token"])
+        st.session_state["idc_jwt_token"] = login.get_iam_oidc_token(token["id_token"])
        
     
     st.sidebar.text ("Welcome: " + user_name)
@@ -209,14 +205,14 @@ def main():
     global user_data
 
     if "token" not in st.session_state:
-        oauth2 = configure_oauth_component()
-        redirect_uri = f"https://{EXTERNAL_DNS}/component/streamlit_oauth.authorize_button/index.html"
+        oauth2 = login.configure_oauth_component()
+        redirect_uri = f"https://{login.OAUTH_CONFIG["ExternalDns"]}/component/streamlit_oauth.authorize_button/index.html"
         # redirect_uri = f"http://localhost:8501/component/streamlit_oauth.authorize_button/index.html"
         result = oauth2.authorize_button("Login",scope="openid", pkce="S256", redirect_uri=redirect_uri)
         if result and "token" in result:
             # If authorization successful, save token in session state
             st.session_state.token = result.get("token")
-            st.session_state["idc_jwt_token"] = get_iam_oidc_token(st.session_state.token["id_token"])            
+            st.session_state["idc_jwt_token"] = login.get_iam_oidc_token(st.session_state.token["id_token"])            
             st.session_state["idc_jwt_token"]["expires_at"] = datetime.now(tz=UTC) + \
                 timedelta(seconds=st.session_state["idc_jwt_token"]["expiresIn"])
             st.write("Login successful!!!", st.session_state["idc_jwt_token"])
@@ -258,7 +254,7 @@ st.session_state.runpage()
 #                     aws_session_token=st.session_state['user']['sessiontoken']
 #                     )
 #         response = client.list_conversations(
-#         QapplicationId=QAPPLICATIONID,
+#         login.AMAZON_Q_APP_ID=login.AMAZON_Q_APP_ID,
 #         maxResults=50,
 #         userId=st.session_state['user']['userid']
 #         )
@@ -275,7 +271,7 @@ st.session_state.runpage()
 #                     aws_session_token=st.session_state['user']['sessiontoken']
 #                     )
 #     response = client.list_messages(
-#         QapplicationId=QAPPLICATIONID,
+#         login.AMAZON_Q_APP_ID=login.AMAZON_Q_APP_ID,
 #         conversationId=conversationID,
 #         maxResults=100,
 #         userId=st.session_state['user']['userid']
