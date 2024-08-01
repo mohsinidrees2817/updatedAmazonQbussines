@@ -143,9 +143,9 @@ def chatApplicationComponent():
     """,
     unsafe_allow_html=True,
     )
-    # st.write(st.session_state["idc_jwt_token"])
-    # st.write(st.session_state['token'])
-    # st.write(st.session_state['aws_credentials'])
+    st.write(st.session_state["idc_jwt_token"])
+    st.write(st.session_state['token'])
+    st.write(st.session_state['aws_credentials'])
 
     if "messages" not in st.session_state:
         st.session_state["messages"] = []
